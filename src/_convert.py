@@ -45,7 +45,7 @@ class Converter(Form, Base):
     
     def getArnolds(self):
         try:
-            arnolds = pc.ls(sl=True, type=pc.nt.AiStandard)
+            return pc.ls(sl=True, type=pc.nt.AiStandard)
         except AttributeError, ex:
             msgBox.showMessage(self, title=self.title,
                                msg='It seems like Arnold is either not loaded or not installed',
@@ -66,7 +66,7 @@ class Converter(Form, Base):
                 node.normalCamera.inputs(plugs=True)[0].connect(lambert.normalCamera)
             except IndexError:
                 pass
-            for sg in pc.listConnections(node, type=pc.nt.ShadingEngines):
+            for sg in pc.listConnections(node, type=pc.nt.ShadingEngine):
                 lambert.outColor.connect(sg.surfaceShader, force=True)
             name = node.name().split(':')[-1].split('|')[-1].replace('aiStandard', 'lambert')
             pc.delete(node)
@@ -97,7 +97,7 @@ class Converter(Form, Base):
                     node.normalCamera.inputs(plugs=True)[0].connect(redshift.bump_input)
                 except IndexError:
                     pass
-                for sg in pc.listConnections(node, type=pc.nt.ShadingEngines):
+                for sg in pc.listConnections(node, type=pc.nt.ShadingEngine):
                     redshift.outColor.connect(sg.surfaceShader, force=True)
                 name = node.name().split(':')[-1].split('|')[-1].replace('aiStandard', 'redshiftArchitectural').replace('lambert', 'redshiftArchitectural')
                 pc.delete(node)
