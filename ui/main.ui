@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>203</width>
-    <height>113</height>
+    <height>160</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -40,9 +40,16 @@
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton">
+     <widget class="QPushButton" name="convertButton">
       <property name="text">
        <string>Convert</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QProgressBar" name="progressBar">
+      <property name="value">
+       <number>0</number>
       </property>
      </widget>
     </item>
