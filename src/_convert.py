@@ -20,9 +20,39 @@ class Converter(Form, Base):
         self.progressBar.hide()
         
         self.convertButton.clicked.connect(self.callConvert)
+        self.selectButton.clicked.connect(self.selectShaders)
+        map(lambda btn: btn.clicked.connect(self.setToolTipForSelectButton), [self.lambertToRedshiftButton,
+                                                                              self.arnoldToLambertButton,
+                                                                              self.arnoldToRedshiftButton])
         
         appUsageApp.updateDatabase('ToRedshift')
+    
+    def setToolTipForSelectButton(self):
+        if self.lambertToRedshiftButton.isChecked():
+            self.selectButton.setToolTip('Select all lamberts')
+        else:
+            self.selectButton.setToolTip('Select all arnolds')
+    
+    def setStatus(self, status):
+        self.statusBar.showMessage(status, 2000)
         
+    def selectShaders(self):
+        length = 0
+        if self.lambertToRedshiftButton.isChecked():
+            shaders = pc.ls(type=pc.nt.Lambert)
+            length = len(shaders)
+            pc.select(shaders)
+        else:
+            try:
+                shaders = pc.ls(type=pc.nt.AiStandard)
+                length = len(shaders)
+                pc.select(shaders)
+            except AttributeError:
+                msgBox.showMessage(self, title=self.title,
+                                   msg='It seems like Arnold is either not loaded or not installed',
+                                   icon=QMessageBox.Information)
+        self.setStatus(str(length) +' shaders selected')
+
     def closeEvent(self, event):
         self.deleteLater()
         del self
@@ -57,6 +87,9 @@ class Converter(Form, Base):
 
     def arnoldToLambert(self):
         arnolds = self.getArnolds()
+        if not arnolds:
+            self.noSelectionMsg()
+            return
         self.progressBar.setMaximum(len(arnolds))
         count = 1
         for node in arnolds:
@@ -77,13 +110,24 @@ class Converter(Form, Base):
             self.progressBar.setValue(count)
             qApp.processEvents()
             count += 1
+            
+    def noSelectionMsg(self):
+        msgBox.showMessage(self, title=self.title,
+                           msg='No source shader selected',
+                           icon=QMessageBox.Information)
     
     def lambertToRedshift(self):
         lamberts = pc.ls(sl=True, type=pc.nt.Lambert)
+        if not lamberts:
+            self.noSelectionMsg()
+            return
         self.toRedshift(lamberts)
     
     def arnoldToRedshift(self):
         arnolds = self.getArnolds()
+        if not arnolds:
+            self.noSelectionMsg()
+            return
         self.toRedshift(arnolds)
     
     def toRedshift(self, nodes):
@@ -103,8 +147,14 @@ class Converter(Form, Base):
                 for sg in pc.listConnections(node, type=pc.nt.ShadingEngine):
                     redshift.outColor.connect(sg.surfaceShader, force=True)
                 name = node.name().split(':')[-1].split('|')[-1].replace('aiStandard', 'redshiftArchitectural').replace('lambert', 'redshiftArchitectural')
-                pc.delete(node)
-                pc.rename(redshift, name)
+                try:
+                    pc.delete(node)
+                except:
+                    pass
+                try:
+                    pc.rename(redshift, name)
+                except:
+                    pass
             else:
                 break
             self.progressBar.setValue(count)
