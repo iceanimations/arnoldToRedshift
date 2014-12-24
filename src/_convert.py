@@ -4,6 +4,7 @@ import qtify_maya_window as qtfy
 import pymel.core as pc
 import msgBox
 from PyQt4.QtGui import QMessageBox, qApp
+import appUsageApp
 
 root_path = osp.dirname(osp.dirname(__file__))
 ui_path = osp.join(root_path, 'ui')
@@ -19,6 +20,8 @@ class Converter(Form, Base):
         self.progressBar.hide()
         
         self.convertButton.clicked.connect(self.callConvert)
+        
+        appUsageApp.updateDatabase('ToRedshift')
         
     def closeEvent(self, event):
         self.deleteLater()
