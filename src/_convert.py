@@ -70,7 +70,9 @@ class Converter(Form, Base):
             
     def creatRedshift(self):
         try:
-            return pc.shadingNode(pc.nt.RedshiftArchitectural, asShader=True)
+            node = pc.shadingNode(pc.nt.RedshiftArchitectural, asShader=True)
+            node.reflectivity.set(0)
+            return node
         except AttributeError:
             msgBox.showMessage(self, title=self.title,
                                msg='It seems like Redshift is either not loaded or not installed',
