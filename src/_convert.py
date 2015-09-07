@@ -77,6 +77,16 @@ class Converter(Form, Base):
             msgBox.showMessage(self, title=self.title,
                                msg='It seems like Redshift is either not loaded or not installed',
                                icon=QMessageBox.Information)
+
+    def createRedshiftBump(self):
+        try:
+            node = pc.shadingNode(pc.nt.RedshiftBumpMap, asUtility=True)
+            return node
+        except AttributeError:
+            msgBox.showMessage(self, title=self.title,
+                               msg='It seems like Redshift is either not loaded or not installed',
+                               icon=QMessageBox.Information)
+
     
     def getArnolds(self):
         try:
@@ -138,14 +148,73 @@ class Converter(Form, Base):
         for node in nodes:
             redshift = self.creatRedshift()
             if redshift is not None:
+
+                #Diffuse colors
                 try:
                     node.color.inputs(plugs=True)[0].connect(redshift.diffuse)
                 except IndexError:
                     redshift.diffuse.set(node.color.get())
+
+                #Speculars
                 try:
-                    node.normalCamera.inputs(plugs=True)[0].connect(redshift.bump_input)
+                    node.specularRoughness.inputs(plugs=True)[0].connect(redshift.refl_gloss)
                 except IndexError:
-                    pass
+                    redshift.refl_gloss.set(1-node.specularRoughness.get())
+
+                try:
+                    node.KsColor.inputs(plugs=True)[0].connect(redshift.refl_color)
+                except IndexError:
+                    redshift.refl_color.set(node.KsColor.get())
+
+                try:
+                    node.Ks.inputs(plugs=True)[0].connect(redshift.reflectivity)
+                except IndexError:
+                    redshift.reflectivity.set(node.Ks.get())
+
+                #Anisotropy
+                try:
+                    node.specularAnisotropy.inputs(plugs=True)[0].connect(redshift.anisotropy)
+                except IndexError:
+                    redshift.anisotropy.set(node.specularAnisotropy.get())
+
+                try:
+                    node.specularRotation.inputs(plugs=True)[0].connect(redshift.anisotropy_rotation);
+                except:
+                    redshift.anisotropy_rotation.set(node.specularRotation.get())
+
+                # Subsurface
+                if node.Ksss.get() or node.Ksss.inputs():
+                    redshift.refr_translucency.set(True)
+
+                    try:
+                        node.Ksss.inputs(plugs=True)[0].connect(redshift.refr_trans_weight)
+                    except IndexError:
+                        redshift.refr_trans_weight.set(node.Ksss.get())
+
+                    try:
+                        node.KsssColor.inputs(plugs=True)[0].connect(redshift.refr_trans_color)
+                    except IndexError:
+                        redshift.refr_trans_color.set(node.KsssColor.get())
+
+                # Bump Mapping
+                try:
+                    bump = node.normalCamera.inputs()[0]
+                    rsbump = self.createRedshiftBump()
+                    inputnode = bump.bumpValue.inputs()[0]
+                    inputnode.outColor.connect(rsbump.input)
+                    rsbump.outDisplacementVector.connect(redshift.bump_input)
+                    rsbump.scale.set(bump.bumpDepth.get())
+                    try:
+                        pc.delete(bump)
+                    except:
+                        pass
+                except IndexError:
+                    try:
+                        node.normalCamera.inputs(plugs=True)[0].connect(redshift.bump_input)
+                    except IndexError:
+                        pass
+
+
                 for sg in pc.listConnections(node, type=pc.nt.ShadingEngine):
                     redshift.outColor.connect(sg.surfaceShader, force=True)
                 name = node.name().split(':')[-1].split('|')[-1].replace('aiStandard', 'redshiftArchitectural').replace('lambert', 'redshiftArchitectural')
