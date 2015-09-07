@@ -142,59 +142,44 @@ class Converter(Form, Base):
             return
         self.toRedshift(arnolds)
     
+    def replaceAttr(self, fromattr, toattr, invert=False):
+        fromattr = self.arnold.attr(fromattr)
+        toattr = self.redshift.attr(toattr)
+        try:
+            fromattr.inputs(plugs=True)[0].connect(toattr)
+        except IndexError:
+            if invert:
+                toattr.set(1-fromattr.get())
+            else:
+                toattr.set(fromattr.get())
+
     def toRedshift(self, nodes):
         self.progressBar.setMaximum(len(nodes))
         count = 1
         for node in nodes:
+
             redshift = self.creatRedshift()
+            self.arnold = node
+            self.redshift = redshift
             if redshift is not None:
 
                 #Diffuse colors
-                try:
-                    node.color.inputs(plugs=True)[0].connect(redshift.diffuse)
-                except IndexError:
-                    redshift.diffuse.set(node.color.get())
+                self.replaceAttr('color', 'diffuse')
 
                 #Speculars
-                try:
-                    node.specularRoughness.inputs(plugs=True)[0].connect(redshift.refl_gloss)
-                except IndexError:
-                    redshift.refl_gloss.set(1-node.specularRoughness.get())
-
-                try:
-                    node.KsColor.inputs(plugs=True)[0].connect(redshift.refl_color)
-                except IndexError:
-                    redshift.refl_color.set(node.KsColor.get())
-
-                try:
-                    node.Ks.inputs(plugs=True)[0].connect(redshift.reflectivity)
-                except IndexError:
-                    redshift.reflectivity.set(node.Ks.get())
+                self.replaceAttr('specularRoughness', 'refl_gloss', invert=True)
+                self.replaceAttr('KsColor', 'refl_color')
+                self.replaceAttr('Ks', 'reflectivity')
 
                 #Anisotropy
-                try:
-                    node.specularAnisotropy.inputs(plugs=True)[0].connect(redshift.anisotropy)
-                except IndexError:
-                    redshift.anisotropy.set(node.specularAnisotropy.get())
-
-                try:
-                    node.specularRotation.inputs(plugs=True)[0].connect(redshift.anisotropy_rotation);
-                except:
-                    redshift.anisotropy_rotation.set(node.specularRotation.get())
+                self.replaceAttr('specularAnisotropy', 'anisotropy')
+                self.replaceAttr('specularRotation', 'anisotropy_rotation')
 
                 # Subsurface
                 if node.Ksss.get() or node.Ksss.inputs():
                     redshift.refr_translucency.set(True)
-
-                    try:
-                        node.Ksss.inputs(plugs=True)[0].connect(redshift.refr_trans_weight)
-                    except IndexError:
-                        redshift.refr_trans_weight.set(node.Ksss.get())
-
-                    try:
-                        node.KsssColor.inputs(plugs=True)[0].connect(redshift.refr_trans_color)
-                    except IndexError:
-                        redshift.refr_trans_color.set(node.KsssColor.get())
+                    self.replaceAttr('Ksss', 'refr_trans_weight')
+                    self.replaceAttr('KsssColor', 'refr_trans_color')
 
                 # Bump Mapping
                 try:
@@ -208,6 +193,7 @@ class Converter(Form, Base):
                         pc.delete(bump)
                     except:
                         pass
+
                 except IndexError:
                     try:
                         node.normalCamera.inputs(plugs=True)[0].connect(redshift.bump_input)
