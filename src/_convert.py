@@ -187,7 +187,10 @@ class Converter(Form, Base):
                     rsbump = self.createRedshiftBump()
                     inputnode = bump.bumpValue.inputs()[0]
                     inputnode.outColor.connect(rsbump.input)
-                    rsbump.outDisplacementVector.connect(redshift.bump_input)
+                    try:
+                        rsbump.outDisplacementVector.connect(redshift.bump_input)
+                    except:
+                        rsbump.out.connect(redshift.bump_input)
                     rsbump.scale.set(bump.bumpDepth.get())
                     try:
                         pc.delete(bump)
