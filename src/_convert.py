@@ -191,7 +191,8 @@ class Converter(Form, Base):
                         rsbump.outDisplacementVector.connect(redshift.bump_input)
                     except:
                         rsbump.out.connect(redshift.bump_input)
-                    rsbump.scale.set(bump.bumpDepth.get())
+                    rsbump.scale.set(pc.dt.clamp(bump.bumpDepth.get()/10.0,
+                        0.001, 100.0))
                     try:
                         pc.delete(bump)
                     except:
