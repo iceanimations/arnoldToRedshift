@@ -143,15 +143,17 @@ class Converter(Form, Base):
         self.toRedshift(arnolds)
     
     def replaceAttr(self, fromattr, toattr, invert=False):
-        fromattr = self.arnold.attr(fromattr)
-        toattr = self.redshift.attr(toattr)
         try:
+            fromattr = self.arnold.attr(fromattr)
+            toattr = self.redshift.attr(toattr)
             fromattr.inputs(plugs=True)[0].connect(toattr)
         except IndexError:
             if invert:
                 toattr.set(1-fromattr.get())
             else:
                 toattr.set(fromattr.get())
+        except Exception:
+            pass
 
     def toRedshift(self, nodes):
         self.progressBar.setMaximum(len(nodes))
@@ -176,10 +178,12 @@ class Converter(Form, Base):
                 self.replaceAttr('specularRotation', 'anisotropy_rotation')
 
                 # Subsurface
-                if node.Ksss.get() or node.Ksss.inputs():
-                    redshift.refr_translucency.set(True)
-                    self.replaceAttr('Ksss', 'refr_trans_weight')
-                    self.replaceAttr('KsssColor', 'refr_trans_color')
+                try:
+                    if node.Ksss.get() or node.Ksss.inputs():
+                        redshift.refr_translucency.set(True)
+                        self.replaceAttr('Ksss', 'refr_trans_weight')
+                        self.replaceAttr('KsssColor', 'refr_trans_color')
+                except: pass
 
                 # Bump Mapping
                 try:
