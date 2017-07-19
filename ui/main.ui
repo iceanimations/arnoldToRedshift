@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>222</width>
-    <height>164</height>
+    <height>182</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -36,6 +36,13 @@
      <widget class="QRadioButton" name="arnoldToRedshiftButton">
       <property name="text">
        <string>Arnold to Redshift</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QRadioButton" name="redshiftToLambertButton">
+      <property name="text">
+       <string>Redshift to Lambert</string>
       </property>
      </widget>
     </item>

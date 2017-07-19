@@ -21,15 +21,17 @@ class Converter(Form, Base):
         
         self.convertButton.clicked.connect(self.callConvert)
         self.selectButton.clicked.connect(self.selectShaders)
-        map(lambda btn: btn.clicked.connect(self.setToolTipForSelectButton), [self.lambertToRedshiftButton,
-                                                                              self.arnoldToLambertButton,
-                                                                              self.arnoldToRedshiftButton])
+        map(lambda btn: btn.clicked.connect(self.setToolTipForSelectButton),
+                [self.lambertToRedshiftButton, self.arnoldToLambertButton,
+                    self.arnoldToRedshiftButton, self.redshiftToLambertButton])
         
         appUsageApp.updateDatabase('ToRedshift')
     
     def setToolTipForSelectButton(self):
         if self.lambertToRedshiftButton.isChecked():
             self.selectButton.setToolTip('Select all lamberts')
+        elif self.redshiftToLambertButton.isChecked():
+            self.selectButton.setToolTip('Select all redshifts')
         else:
             self.selectButton.setToolTip('Select all arnolds')
     
@@ -40,6 +42,10 @@ class Converter(Form, Base):
         length = 0
         if self.lambertToRedshiftButton.isChecked():
             shaders = pc.ls(type=pc.nt.Lambert)
+            length = len(shaders)
+            pc.select(shaders)
+        elif self.redshiftToLambertButton.isChecked():
+            shaders = self.getRedshifts()
             length = len(shaders)
             pc.select(shaders)
         else:
@@ -61,6 +67,8 @@ class Converter(Form, Base):
         self.progressBar.show()
         if self.arnoldToLambertButton.isChecked():
             self.arnoldToLambert()
+        elif self.redshiftToLambertButton.isChecked():
+            self.redshiftToLambert()
         elif self.arnoldToRedshiftButton.isChecked():
             self.arnoldToRedshift()
         else:
@@ -87,6 +95,8 @@ class Converter(Form, Base):
                                msg='It seems like Redshift is either not loaded or not installed',
                                icon=QMessageBox.Information)
 
+    def createBump2d(self):
+        return pc.shadingNode(pc.nt.Bump2d, asUtility=True)
     
     def getArnolds(self):
         try:
@@ -144,8 +154,8 @@ class Converter(Form, Base):
     
     def replaceAttr(self, fromattr, toattr, invert=False):
         try:
-            fromattr = self.arnold.attr(fromattr)
-            toattr = self.redshift.attr(toattr)
+            fromattr = self.fromNode.attr(fromattr)
+            toattr = self.toNode.attr(toattr)
             fromattr.inputs(plugs=True)[0].connect(toattr)
         except IndexError:
             if invert:
@@ -161,8 +171,8 @@ class Converter(Form, Base):
         for node in nodes:
 
             redshift = self.creatRedshift()
-            self.arnold = node
-            self.redshift = redshift
+            self.fromNode = node
+            self.toNode = redshift
             if redshift is not None:
 
                 #Diffuse colors
@@ -224,3 +234,60 @@ class Converter(Form, Base):
                 break
             self.progressBar.setValue(count)
             count += 1
+
+    def getRedshifts(self):
+        materials = []
+        for se in pc.ls(type='shadingEngine'):
+            try:
+                material = se.surfaceShader.inputs()[0]
+                if material.nodeType().startswith('Redshift'):
+                    materials.append(material)
+            except IndexError:
+                continue
+        return materials
+
+    def redshiftToLambert(self):
+        materials = self.getRedshifts()
+        self.progressBar.setMaximum(len(materials))
+        count = 1
+        for material in materials:
+            lambert = pc.shadingNode(pc.nt.Lambert, asShader=True)
+
+            self.fromNode = material
+            self.toNode = lambert
+
+            self.replaceAttr('diffuse', 'color')
+
+            # Bump mapping
+            try:
+                bump = self.createBump2d()
+                rsbump = material.bump_input.inputs()[0]
+                try:
+                    input_texture = rsbump.input.inputs()[0]
+                except AttributeError:
+                    input_texture = pc.mel.eval(
+                            'createRenderNodeCB -as2DTexture "" file ""')
+                    input_texture=pc.PyNode(input_texture)
+                    input_texture.ftn.set(rsbump.tex0.get())
+                input_texture.outAlpha.connect(bump.bumpValue)
+                bump.outNormal.connect(lambert.normalCamera)
+                bump.bumpDepth.set(rsbump.scale.get() * 10.0)
+                pc.delete(rsbump)
+            except IndexError:
+                try:
+                    material.bump_input.inputs(plugs=True)[0].connect(
+                            lambert.normalCamera )
+                except IndexError:
+                    pass
+
+            for sg in pc.listConnections(material, type='shadingEngine'):
+                lambert.outColor.connect(sg.surfaceShader, force=True)
+
+            name = material.name().split(':')[-1].replace('Redshift',
+                    'lambert')
+            pc.delete(material)
+            pc.rename(lambert, name)
+            self.progressBar.setValue(count)
+            qApp.processEvents()
+            count += 1
+
