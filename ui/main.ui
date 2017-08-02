@@ -26,9 +26,9 @@
      </widget>
     </item>
     <item>
-     <widget class="QRadioButton" name="lambertToRedshiftButton">
+     <widget class="QRadioButton" name="mayaToRedshiftButton">
       <property name="text">
-       <string>Lambert to Redshift</string>
+       <string>Maya to Redshift</string>
       </property>
      </widget>
     </item>

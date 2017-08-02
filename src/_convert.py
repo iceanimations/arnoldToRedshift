@@ -14,34 +14,34 @@ class Converter(Form, Base):
     def __init__(self, parent=qtfy.getMayaWindow(), standalone=False):
         super(Converter, self).__init__(parent)
         self.setupUi(self)
-        
+
         self.title = 'Redshift Converter'
-        
+
         self.progressBar.hide()
-        
+
         self.convertButton.clicked.connect(self.callConvert)
         self.selectButton.clicked.connect(self.selectShaders)
         map(lambda btn: btn.clicked.connect(self.setToolTipForSelectButton),
-                [self.lambertToRedshiftButton, self.arnoldToLambertButton,
+                [self.mayaToRedshiftButton, self.arnoldToLambertButton,
                     self.arnoldToRedshiftButton, self.redshiftToLambertButton])
-        
+
         appUsageApp.updateDatabase('ToRedshift')
-    
+
     def setToolTipForSelectButton(self):
-        if self.lambertToRedshiftButton.isChecked():
+        if self.mayaToRedshiftButton.isChecked():
             self.selectButton.setToolTip('Select all lamberts')
         elif self.redshiftToLambertButton.isChecked():
             self.selectButton.setToolTip('Select all redshifts')
         else:
             self.selectButton.setToolTip('Select all arnolds')
-    
+
     def setStatus(self, status):
         self.statusBar.showMessage(status, 2000)
-        
+
     def selectShaders(self):
         length = 0
-        if self.lambertToRedshiftButton.isChecked():
-            shaders = pc.ls(type=pc.nt.Lambert)
+        if self.mayaToRedshiftButton.isChecked():
+            shaders = pc.ls(type=[pc.nt.Lambert, pc.nt.Phong])
             length = len(shaders)
             pc.select(shaders)
         elif self.redshiftToLambertButton.isChecked():
@@ -57,12 +57,12 @@ class Converter(Form, Base):
                 msgBox.showMessage(self, title=self.title,
                                    msg='It seems like Arnold is either not loaded or not installed',
                                    icon=QMessageBox.Information)
-        self.setStatus(str(length) +' shaders selected')
+        self.setStatus(str(length) + ' shaders selected')
 
     def closeEvent(self, event):
         self.deleteLater()
         del self
-        
+
     def callConvert(self):
         self.progressBar.show()
         if self.arnoldToLambertButton.isChecked():
@@ -72,10 +72,10 @@ class Converter(Form, Base):
         elif self.arnoldToRedshiftButton.isChecked():
             self.arnoldToRedshift()
         else:
-            self.lambertToRedshift()
+            self.mayaToRedshift()
         self.progressBar.setValue(0)
         self.progressBar.hide()
-            
+
     def creatRedshift(self):
         try:
             node = pc.shadingNode(pc.nt.RedshiftArchitectural, asShader=True)
@@ -95,9 +95,18 @@ class Converter(Form, Base):
                                msg='It seems like Redshift is either not loaded or not installed',
                                icon=QMessageBox.Information)
 
+    def createRedshiftSprite(self):
+        try:
+            node = pc.shadingNode(pc.nt.RedshiftSprite, asUtility=True)
+            return node
+        except AttributeError:
+            msgBox.showMessage(self, title=self.title,
+                               msg='It seems like Redshift is either not loaded or not installed',
+                               icon=QMessageBox.Information)
+
     def createBump2d(self):
         return pc.shadingNode(pc.nt.Bump2d, asUtility=True)
-    
+
     def getArnolds(self):
         try:
             return pc.ls(sl=True, type=pc.nt.AiStandard)
@@ -132,26 +141,26 @@ class Converter(Form, Base):
             self.progressBar.setValue(count)
             qApp.processEvents()
             count += 1
-            
+
     def noSelectionMsg(self):
         msgBox.showMessage(self, title=self.title,
                            msg='No source shader selected',
                            icon=QMessageBox.Information)
-    
-    def lambertToRedshift(self):
-        lamberts = pc.ls(sl=True, type=pc.nt.Lambert)
+
+    def mayaToRedshift(self):
+        lamberts = pc.ls(sl=True, type=[pc.nt.Lambert, pc.nt.Phong])
         if not lamberts:
             self.noSelectionMsg()
             return
         self.toRedshift(lamberts)
-    
+
     def arnoldToRedshift(self):
         arnolds = self.getArnolds()
         if not arnolds:
             self.noSelectionMsg()
             return
         self.toRedshift(arnolds)
-    
+
     def replaceAttr(self, fromattr, toattr, invert=False):
         try:
             fromattr = self.fromNode.attr(fromattr)
@@ -179,6 +188,7 @@ class Converter(Form, Base):
                 self.replaceAttr('color', 'diffuse')
 
                 #Speculars
+                self.replaceAttr('specularColor', 'refl_color')
                 self.replaceAttr('specularRoughness', 'refl_gloss', invert=True)
                 self.replaceAttr('KsColor', 'refl_color')
                 self.replaceAttr('Ks', 'reflectivity')
@@ -218,6 +228,19 @@ class Converter(Form, Base):
                     except IndexError:
                         pass
 
+                sprite = None
+                rsOrig = None
+                # Transparency
+                try:
+                    file_node = node.transparency.inputs()[0]
+                    sprite = self.createRedshiftSprite()
+                    sprite.tex0.set(file_node.cfnp.get())
+                    redshift.outColor.connect(sprite.input)
+                    pc.delete(file_node)
+                    rsOrig = redshift
+                    redshift = sprite
+                except IndexError:
+                    pass
 
                 for sg in pc.listConnections(node, type=pc.nt.ShadingEngine):
                     redshift.outColor.connect(sg.surfaceShader, force=True)
@@ -227,7 +250,11 @@ class Converter(Form, Base):
                 except:
                     pass
                 try:
-                    pc.rename(redshift, name)
+                    if sprite:
+                        pc.rename(rsOrig, name+'_mtl')
+                        pc.rename(redshift, name+'_spt')
+                    else:
+                        pc.rename(redshift, name)
                 except:
                     pass
             else:
@@ -290,4 +317,3 @@ class Converter(Form, Base):
             self.progressBar.setValue(count)
             qApp.processEvents()
             count += 1
-
