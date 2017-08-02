@@ -1,15 +1,21 @@
-import os.path as osp
+''' Shader Converter '''
+
 from uiContainer import uic
-import qtify_maya_window as qtfy
+from PyQt4.QtGui import QMessageBox, qApp
+
+import os.path as osp
+
 import pymel.core as pc
 import msgBox
-from PyQt4.QtGui import QMessageBox, qApp
+import qtify_maya_window as qtfy
 import appUsageApp
+
 
 root_path = osp.dirname(osp.dirname(__file__))
 ui_path = osp.join(root_path, 'ui')
-
 Form, Base = uic.loadUiType(osp.join(ui_path, 'main.ui'))
+
+
 class Converter(Form, Base):
     def __init__(self, parent=qtfy.getMayaWindow(), standalone=False):
         super(Converter, self).__init__(parent)
@@ -22,8 +28,8 @@ class Converter(Form, Base):
         self.convertButton.clicked.connect(self.callConvert)
         self.selectButton.clicked.connect(self.selectShaders)
         map(lambda btn: btn.clicked.connect(self.setToolTipForSelectButton),
-                [self.mayaToRedshiftButton, self.arnoldToLambertButton,
-                    self.arnoldToRedshiftButton, self.redshiftToLambertButton])
+            [self.mayaToRedshiftButton, self.arnoldToLambertButton,
+                self.arnoldToRedshiftButton, self.redshiftToLambertButton])
 
         appUsageApp.updateDatabase('ToRedshift')
 
@@ -54,9 +60,10 @@ class Converter(Form, Base):
                 length = len(shaders)
                 pc.select(shaders)
             except AttributeError:
-                msgBox.showMessage(self, title=self.title,
-                                   msg='It seems like Arnold is either not loaded or not installed',
-                                   icon=QMessageBox.Information)
+                msgBox.showMessage(
+                    self, title=self.title,
+                    msg=('It seems like Arnold is either not loaded or not '
+                         'installed'), icon=QMessageBox.Information)
         self.setStatus(str(length) + ' shaders selected')
 
     def closeEvent(self, event):
@@ -82,27 +89,31 @@ class Converter(Form, Base):
             node.reflectivity.set(0)
             return node
         except AttributeError:
-            msgBox.showMessage(self, title=self.title,
-                               msg='It seems like Redshift is either not loaded or not installed',
-                               icon=QMessageBox.Information)
+            msgBox.showMessage(
+                self, title=self.title,
+                msg=('It seems like Redshift is either not loaded or not '
+                     'installed'), icon=QMessageBox.Information)
 
     def createRedshiftBump(self):
         try:
             node = pc.shadingNode(pc.nt.RedshiftBumpMap, asUtility=True)
             return node
         except AttributeError:
-            msgBox.showMessage(self, title=self.title,
-                               msg='It seems like Redshift is either not loaded or not installed',
-                               icon=QMessageBox.Information)
+            msgBox.showMessage(
+                self, title=self.title,
+                msg=('It seems like Redshift is either not loaded or not '
+                     'installed'), icon=QMessageBox.Information)
 
     def createRedshiftSprite(self):
         try:
             node = pc.shadingNode(pc.nt.RedshiftSprite, asUtility=True)
             return node
         except AttributeError:
-            msgBox.showMessage(self, title=self.title,
-                               msg='It seems like Redshift is either not loaded or not installed',
-                               icon=QMessageBox.Information)
+            msgBox.showMessage(
+                self, title=self.title,
+                msg=('It seems like Redshift is either not loaded or not '
+                     ' installed'),
+                icon=QMessageBox.Information)
 
     def createBump2d(self):
         return pc.shadingNode(pc.nt.Bump2d, asUtility=True)
@@ -110,10 +121,12 @@ class Converter(Form, Base):
     def getArnolds(self):
         try:
             return pc.ls(sl=True, type=pc.nt.AiStandard)
-        except AttributeError, ex:
-            msgBox.showMessage(self, title=self.title,
-                               msg='It seems like Arnold is either not loaded or not installed',
-                               icon=QMessageBox.Information)
+        except AttributeError:
+            msgBox.showMessage(
+                self, title=self.title,
+                msg=('It seems like Arnold is either not loaded or not '
+                     ' installed'),
+                icon=QMessageBox.Information)
             return []
 
     def arnoldToLambert(self):
@@ -130,12 +143,14 @@ class Converter(Form, Base):
             except IndexError:
                 lambert.color.set(node.color.get())
             try:
-                node.normalCamera.inputs(plugs=True)[0].connect(lambert.normalCamera)
+                node.normalCamera.inputs(plugs=True)[0].connect(
+                        lambert.normalCamera)
             except IndexError:
                 pass
             for sg in pc.listConnections(node, type=pc.nt.ShadingEngine):
                 lambert.outColor.connect(sg.surfaceShader, force=True)
-            name = node.name().split(':')[-1].split('|')[-1].replace('aiStandard', 'lambert')
+            name = node.name().split(':')[-1].split('|')[-1].replace(
+                    'aiStandard', 'lambert')
             pc.delete(node)
             pc.rename(lambert, name)
             self.progressBar.setValue(count)
@@ -184,16 +199,17 @@ class Converter(Form, Base):
             self.toNode = redshift
             if redshift is not None:
 
-                #Diffuse colors
+                # Diffuse colors
                 self.replaceAttr('color', 'diffuse')
 
-                #Speculars
+                # Speculars
                 self.replaceAttr('specularColor', 'refl_color')
-                self.replaceAttr('specularRoughness', 'refl_gloss', invert=True)
+                self.replaceAttr('specularRoughness', 'refl_gloss',
+                                 invert=True)
                 self.replaceAttr('KsColor', 'refl_color')
                 self.replaceAttr('Ks', 'reflectivity')
 
-                #Anisotropy
+                # Anisotropy
                 self.replaceAttr('specularAnisotropy', 'anisotropy')
                 self.replaceAttr('specularRotation', 'anisotropy_rotation')
 
@@ -203,7 +219,8 @@ class Converter(Form, Base):
                         redshift.refr_translucency.set(True)
                         self.replaceAttr('Ksss', 'refr_trans_weight')
                         self.replaceAttr('KsssColor', 'refr_trans_color')
-                except: pass
+                except:
+                    pass
 
                 # Bump Mapping
                 try:
@@ -212,11 +229,12 @@ class Converter(Form, Base):
                     inputnode = bump.bumpValue.inputs()[0]
                     inputnode.outColor.connect(rsbump.input)
                     try:
-                        rsbump.outDisplacementVector.connect(redshift.bump_input)
+                        rsbump.outDisplacementVector.connect(
+                                redshift.bump_input)
                     except:
                         rsbump.out.connect(redshift.bump_input)
                     rsbump.scale.set(pc.dt.clamp(bump.bumpDepth.get()/10.0,
-                        0.001, 100.0))
+                                     0.001, 100.0))
                     try:
                         pc.delete(bump)
                     except:
@@ -224,7 +242,8 @@ class Converter(Form, Base):
 
                 except IndexError:
                     try:
-                        node.normalCamera.inputs(plugs=True)[0].connect(redshift.bump_input)
+                        node.normalCamera.inputs(plugs=True)[0].connect(
+                                redshift.bump_input)
                     except IndexError:
                         pass
 
@@ -244,7 +263,9 @@ class Converter(Form, Base):
 
                 for sg in pc.listConnections(node, type=pc.nt.ShadingEngine):
                     redshift.outColor.connect(sg.surfaceShader, force=True)
-                name = node.name().split(':')[-1].split('|')[-1].replace('aiStandard', 'redshiftArchitectural').replace('lambert', 'redshiftArchitectural')
+                name = node.name().split(':')[-1].split('|')[-1].replace(
+                        'aiStandard', 'redshiftArchitectural').replace(
+                                'lambert', 'redshiftArchitectural')
                 try:
                     pc.delete(node)
                 except:
@@ -294,7 +315,7 @@ class Converter(Form, Base):
                 except AttributeError:
                     input_texture = pc.mel.eval(
                             'createRenderNodeCB -as2DTexture "" file ""')
-                    input_texture=pc.PyNode(input_texture)
+                    input_texture = pc.PyNode(input_texture)
                     input_texture.ftn.set(rsbump.tex0.get())
                 input_texture.outAlpha.connect(bump.bumpValue)
                 bump.outNormal.connect(lambert.normalCamera)
@@ -303,15 +324,15 @@ class Converter(Form, Base):
             except IndexError:
                 try:
                     material.bump_input.inputs(plugs=True)[0].connect(
-                            lambert.normalCamera )
+                            lambert.normalCamera)
                 except IndexError:
                     pass
 
             for sg in pc.listConnections(material, type='shadingEngine'):
                 lambert.outColor.connect(sg.surfaceShader, force=True)
 
-            name = material.name().split(':')[-1].replace('Redshift',
-                    'lambert')
+            name = material.name().split(':')[-1].replace(
+                    'Redshift', 'lambert')
             pc.delete(material)
             pc.rename(lambert, name)
             self.progressBar.setValue(count)
